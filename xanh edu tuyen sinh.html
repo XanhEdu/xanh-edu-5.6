@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XANH EDU 5.6 - Tự Động Trích Xuất Thông Tin Tuyển 6</title>
+    <!-- Tải thư viện lõi -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* THANH HEADER TRÀN VIỀN KÈM LOGO */
+        .top-header {
+            background-color: #ffffff;
+            width: 100%;
+            padding: 15px 40px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            border-bottom: 5px solid #2e7d32;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .logo-box {
+            margin-right: 25px;
+            display: flex;
+            align-items: center;
+        }
+        /* Cấu hình hiển thị Logo Xanh Edu - Đã phóng to lên */
+        .logo-box img {
+            height: 100px; 
+            width: auto;
+            object-fit: contain;
+        }
+        .title-box {
+            flex-grow: 1;
+        }
+        .title-box h1 {
+            color: #1b5e20;
+            margin: 0 0 5px 0;
+            font-size: 26px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.05);
+        }
+        .title-box p {
+            color: #555;
+            margin: 0;
+            font-size: 15px;
+            font-style: italic; /* In nghiêng toàn bộ dòng tác giả */
+        }
+
+        /* KHUNG CHỨA NỘI DUNG MỞ RỘNG (90% MÀN HÌNH) */
+        .main-container {
+            max-width: 90%;
+            margin: 40px auto;
+            background: #ffffff;
+            padding: 40px 50px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+        }
+        
+        .form-group {
+            margin-bottom: 30px;
+            padding: 30px;
+            border: 2px dashed #81c784;
+            border-radius: 8px;
+            background: linear-gradient(to bottom, #ffffff, #f1f8e9);
+            text-align: center;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2e7d32;
+            font-size: 18px;
+        }
+        input[type="file"] {
+            display: inline-block;
+            padding: 12px 20px;
+            background: #fff;
+            border: 1px solid #a5d6a7;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #333;
+            font-size: 16px;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 20px;
+            background-color: #2e7d32;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(46,125,50,0.3);
+            text-transform: uppercase;
+        }
+        button:hover { background-color: #1b5e20; transform: translateY(-2px); }
+        button:active { transform: translateY(0); }
+        button:disabled {
+            background-color: #cccccc;
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+        #status {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+            font-weight: bold;
+            font-size: 16px;
+            text-align: center;
+        }
+        .info { background-color: #e3f2fd; color: #1565c0; border-left: 5px solid #1565c0; }
+        .success { background-color: #e8f5e9; color: #2e7d32; border-left: 5px solid #2e7d32; }
+        .error { background-color: #fce8e6; color: #c5221f; border-left: 5px solid #c5221f; }
+    </style>
+</head>
+<body>
+
+<!-- GIAO DIỆN HEADER TRÀN VIỀN KÈM LOGO -->
+<header class="top-header">
+    <div class="logo-box">
+        <img src="logo.png" alt="XANH EDU Logo" id="brandLogo">
+    </div>
+    
+    <div class="title-box">
+        <h1>XANH EDU 5.6 - TỰ ĐỘNG TRÍCH XUẤT THÔNG TIN TUYỂN 6</h1>
+        <!-- Đã bỏ in đậm, đổi thành in nghiêng toàn bộ -->
+        <p>Thiết kế và phát triển bởi: Gv Đặng Minh Đức - TH A Hoà Bình - Hội An - An Giang</p>
+    </div>
+</header>
+
+<main class="main-container">
+    <div class="form-group">
+        <label>Tải lên File Excel danh sách lớp thô của hệ thống</label>
+        <input type="file" id="excelFile" accept=".xlsx, .xls">
+    </div>
+
+    <button id="processBtn" onclick="generateDocuments()">TẠO 1 FILE WORD HỒ SƠ CHO TOÀN BỘ LỚP</button>
+
+    <div id="status"></div>
+</main>
+
+<script>
+    let excelData = null;
+
+    document.getElementById('excelFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const data = new Uint8Array(event.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            
+            excelData = XLSX.utils.sheet_to_json(worksheet, {range: 1, raw: false, defval: ""});
+            showStatus(`✅ Đã nạp dữ liệu thành công! Tìm thấy danh sách gồm ${excelData.length} học sinh.`, "info");
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    function S(val) {
+        if (val === undefined || val === null) return "";
+        let str = val.toString().trim();
+        if (str.toLowerCase() === "nan" || str.toLowerCase() === "null" || str.toLowerCase() === "undefined") return "";
+        return str;
+    }
+
+    function showStatus(message, type) {
+        const statusDiv = document.getElementById('status');
+        statusDiv.style.display = 'block';
+        statusDiv.className = type;
+        statusDiv.innerText = message;
+    }
+
+    async function generateDocuments() {
+        if (!excelData || excelData.length === 0) {
+            showStatus("❌ Vui lòng chọn file Excel danh sách lớp trước!", "error");
+            return;
+        }
+
+        const btn = document.getElementById('processBtn');
+        btn.disabled = true;
+        btn.innerText = "⏳ ĐANG XÂY DỰNG FILE WORD...";
+        showStatus("⏳ Hệ thống đang ráp nối trang cho toàn bộ học sinh, vui lòng đợi...", "info");
+
+        let allPagesHTML = "";
+
+        for (let i = 0; i < excelData.length; i++) {
+            const row = excelData[i];
+            
+            if (i > 0) {
+                allPagesHTML += `<br clear="all" style="page-break-before:always" />`;
+            }
+
+            allPagesHTML += `
+            <div class="center" style="font-size: 13pt; margin-bottom: 2px;"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b></div>
+            <div class="center" style="font-size: 13pt; margin-bottom: 20px;"><b>Độc lập - Tự do - Hạnh phúc</b></div>
+            
+            <table style="width: 100%; border: none; margin-bottom: 10px;">
+                <tr>
+                    <td style="width: 3cm; vertical-align: top; text-align: left; padding: 0;">
+                        <table style="width: 3cm; border-collapse: collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;">
+                            <tr style="height: 4cm;">
+                                <td style="border: 1pt solid black; text-align: center; vertical-align: middle; font-size: 11pt; padding: 0;">Ảnh<br>3x4</td>
+                            </tr>
+                        </table>
+                    </td>
+                    <td style="vertical-align: top; text-align: center; padding: 0;">
+                        <div style="font-size: 13pt; margin-bottom: 15px; margin-top: 5px;">
+                            <b>PHIẾU ĐĂNG KÝ XÉT TUYỂN VÀO LỚP 6<br>NĂM HỌC 2026 – 2027</b>
+                        </div>
+                        <p class="p-style center"><b><i>Kính gửi: Hội đồng tuyển sinh</i></b></p>
+                        <p class="p-style center"><b><i>Trường ${S(row['trường_đăng_ký_tuyển_sinh'])}</i></b></p>
+                    </td>
+                    <td style="width: 3cm;"></td>
+                </tr>
+            </table>
+            
+            <p class="p-style"><b>1. Họ tên học sinh:</b> ${S(row['họ_tên_học_sinh'])}</p>
+            <p class="p-style"><b>Giới tính (Nam/Nữ):</b> ${S(row['giới_tính'])}</p>
+            <p class="p-style"><b>Sinh ngày:</b> ${S(row['ngày_sinh'])}</p>
+            <p class="p-style"><b>Dân tộc:</b> ${S(row['dân_tộc'])}</p>
+            <p class="p-style"><b>Nơi thường trú:</b> ${S(row['nơi_thường_trú'])}</p>
+            <p class="p-style"><b>Chỗ ở hiện nay:</b> ${S(row['chỗ_ở_hiện_nay'])}</p>
+            <p class="p-style"><b>Địa chỉ liên hệ:</b> ${S(row['địa_chỉ_liên_hệ'])}</p>
+            <p class="p-style"><b>Số điện thoại:</b> ${S(row['số_điện_thoại_hs'])}</p>
+            
+            <p class="p-style"><b>2. Số định danh cá nhân học sinh:</b> ${S(row['số_định_danh'])}</p>
+            <p class="p-style"><b>3. Năm học 2025 – 2026 là học sinh trường:</b> ${S(row['trường_năm_học_trước'])}</p>
+            <p class="p-style"><b>4. Đăng ký tuyển sinh vào trường:</b> ${S(row['trường_đăng_ký_tuyển_sinh'])}</p>
+            <p class="p-style"><b>5. Khoảng cách dự kiến đến trường được tuyển sinh:</b> ${S(row['khoảng_cách_dự_kiến'])}</p>
+            
+            <p class="p-style"><b>6. Họ tên cha:</b> ${S(row['họ_tên_cha'])} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Năm sinh:</b> ${S(row['năm_sinh_cha'])}</p>
+            <p class="p-style"><b>- Số điện thoại:</b> ${S(row['số_điện_cha'] || S(row['số_điện_thoại_cha']))} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Nghề nghiệp:</b> ${S(row['nghề_nghiệp_cha'])}</p>
+            
+            <p class="p-style"><b>7. Họ tên mẹ:</b> ${S(row['họ_tên_mẹ'])} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Năm sinh:</b> ${S(row['năm_sinh_mẹ'])}</p>
+            <p class="p-style"><b>- Số điện thoại:</b> ${S(row['số_điện_mẹ'] || S(row['số_điện_thoại_mẹ']))} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Nghề nghiệp:</b> ${S(row['nghề_nghiệp_mẹ'])}</p>
+            
+            <p class="p-style"><b>8. Họ tên người giám hộ (nếu có):</b> ${S(row['họ_tên_người_giám_hộ'])} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Năm sinh:</b> ${S(row['năm_sinh_người_giám_hộ'])}</p>
+            <p class="p-style"><b>- Số điện thoại:</b> ${S(row['số_điện_người_giám_hộ'] || S(row['số_điện_thoại_người_giám_hộ']))} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Nghề nghiệp:</b> ${S(row['nghề_nghiệp_người_giám_hộ'])}</p>
+            
+            <p class="p-style" style="margin-bottom: 15px;"><b>9. Số điện thoại liên hệ:</b> ${S(row['số_điện_thoại_liên_hệ_chung'])} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Email:</b> ${S(row['email_liên_hệ'])}</p>
+            
+            <p class="p-style" style="font-style: italic;">Cha mẹ học sinh cam kết những thông tin của học sinh là đúng sự thật; nếu không đúng phụ huynh học sinh hoàn toàn chịu trách nhiệm về kết quả của học sinh.</p>
+            <p class="p-style" style="font-style: italic; margin-bottom: 20px;">Trân trọng cảm ơn!</p>
+            
+            <table style="width: 100%; border: none;">
+                <tr>
+                    <td style="width: 40%;"></td>
+                    <td style="width: 60%; text-align: center; font-style: italic;">
+                        ${S(row['ngày_tháng_năm']) || '….., ngày ….tháng .... năm 2026'}<br>
+                        <b><span style="font-style: normal;">CHA MẸ HỌC SINH</span></b><br>
+                        <span style="font-size: 9.5pt; color: #444;">(Ký và ghi rõ họ tên)</span>
+                    </td>
+                </tr>
+            </table>
+            `;
+        }
+
+        const fullDocTemplate = `
+        <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                @page { 
+                    size: A4; 
+                    margin: 1.5cm 1.5cm 1.5cm 2.0cm; 
+                }
+                body { 
+                    font-family: 'Arial', sans-serif; 
+                    font-size: 11pt; 
+                    line-height: 1.25; 
+                    color: #000; 
+                    margin: 0;
+                    padding: 0;
+                }
+                .center { text-align: center; }
+                .p-style { margin: 0 0 5px 0; padding: 0; }
+            </style>
+        </head>
+        <body>
+            ${allPagesHTML}
+        </body>
+        </html>
+        `;
+
+        try {
+            const blob = new Blob([fullDocTemplate], { type: 'application/msword;charset=utf-8' });
+            saveAs(blob, "Ho so tuyen 6.doc");
+            
+            btn.disabled = false;
+            btn.innerText = "TẠO 1 FILE WORD HỒ SƠ CHO TOÀN BỘ LỚP";
+            showStatus(`🎉 HOÀN TẤT! Đã đóng gói thành công ${excelData.length} hồ sơ vào tệp "Ho so tuyen 6.doc".`, "success");
+        } catch (error) {
+            btn.disabled = false;
+            btn.innerText = "TẠO 1 FILE WORD HỒ SƠ CHO TOÀN BỘ LỚP";
+            showStatus("❌ Đã xảy ra lỗi khi tạo file Word.", "error");
+            console.error(error);
+        }
+    }
+</script>
+
+</body>
+</html>
